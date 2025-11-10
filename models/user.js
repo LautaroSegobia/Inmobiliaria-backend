@@ -9,14 +9,14 @@ const userSchema = new mongoose.Schema(
     password: { type: String, required: true },
     role: {
       type: String,
-      enum: ["user", "admin", "superAdmin"],
+      enum: ["user", "admin", "superAdmin"], // roles válidos
       default: "user",
     },
   },
   { timestamps: true }
 );
 
-// Encriptar password antes de guardar
+// 🔒 Encriptar password antes de guardar
 userSchema.pre("save", async function (next) {
   if (!this.isModified("password")) return next();
   const salt = await bcrypt.genSalt(10);
@@ -24,9 +24,11 @@ userSchema.pre("save", async function (next) {
   next();
 });
 
-// Método para comparar contraseñas
+// ✅ Comparar contraseñas
 userSchema.methods.matchPassword = async function (enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };
 
-export default mongoose.model("User", userSchema);
+// ⚠️ IMPORTANTE: ESM requiere extensión `.js`
+const User = mongoose.model("User", userSchema);
+export default User;
