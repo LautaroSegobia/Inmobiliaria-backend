@@ -1,94 +1,131 @@
 
 import Property from "../models/property.js";
 
-// Obtener todas las propiedades
-export const getProperties = async (req, res) => {
-  try {
-    const propiedades = await Property.find();
-    res.json(propiedades);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
+// Normalizar precio/expensas
+function normalizeMoneyField(field) {
+  if (!field) return undefined;
 
-// Crear propiedad (solo admin o developer)
+  // Si viene como número → convertir a objeto
+  if (typeof field === "number") {
+    return { valor: field, moneda: "ARS" };
+  }
+
+  // Si viene como string → convertir número y default moneda
+  if (typeof field === "string") {
+    return { valor: Number(field), moneda: "ARS" };
+  }
+
+  // Si viene en formato { valor, moneda }
+  if (typeof field === "object") {
+    return {
+      valor: Number(field.valor) || 0,
+      moneda: field.moneda || "ARS",
+    };
+  }
+
+  return undefined;
+}
+
+// Crear propiedad
 export const createProperty = async (req, res) => {
   try {
-    const {
-      titulo,
-      descripcion,
-      precio,
-      moneda,
-      expensas,
-      monedaExpensas,
-      multimedia,
-      ...rest
-    } = req.body;
+    const body = req.body;
 
-    const multimediaArray = Array.isArray(multimedia)
-      ? multimedia
-      : JSON.parse(multimedia || "[]");
+    console.log("📥 BODY RECIBIDO:", body);
 
-    const cover = multimediaArray.find((img) => img.isCover);
+    // ---------------------------
+    // 1) Normalizar mainImage
+    // ---------------------------
+    if (body.mainImage && typeof body.mainImage === "string") {
+      body.mainImage = {
+        url: body.mainImage,
+        public_id: "",
+        isCover: true,
+      };
+    }
 
-    const payload = {
-      titulo,
-      descripcion,
-      precio: { valor: precio || 0, moneda: moneda || "USD" },
-      expensas: { valor: expensas || 0, moneda: monedaExpensas || "ARS" },
-      multimedia: multimediaArray,
-      mainImage: cover ? cover.url : multimediaArray[0]?.url || null,
-      creadoPor: req.user._id,
-      ...rest,
-    };
+    // Ya viene como objeto desde Cloudinary → ok
 
-    const nueva = await Property.create(payload);
-    res.status(201).json(nueva);
+    // ---------------------------
+    // 2) Normalizar multimedia
+    // ---------------------------
+    if (!Array.isArray(body.multimedia)) {
+      body.multimedia = [];
+    }
+
+    // ---------------------------
+    // 3) Normalizar precio/expensas
+    // ---------------------------
+    body.precio = normalizeMoneyField(body.precio);
+    body.expensas = normalizeMoneyField(body.expensas);
+
+    console.log("📤 BODY NORMALIZADO:", body);
+
+    // ---------------------------
+    // 4) Crear propiedad
+    // ---------------------------
+    const property = new Property(body);
+    await property.save();
+
+    res.status(201).json(property);
+
   } catch (error) {
-    console.error("Error al crear propiedad:", error);
-    res.status(500).json({ message: error.message });
+    console.error("❌ Error al crear propiedad:", error);
+    res.status(500).json({
+      message: "Error al crear propiedad",
+      error,
+    });
   }
 };
 
-// Editar propiedad (solo admin o developer)
+export const getAllProperties = async (req, res) => {
+  try {
+    const properties = await Property.find().sort({ createdAt: -1 });
+    res.status(200).json(properties);
+  } catch (error) {
+    res.status(500).json({ message: "Error al obtener propiedades", error });
+  }
+};
+
+export const getPropertyById = async (req, res) => {
+  try {
+    const property = await Property.findById(req.params.id);
+    if (!property) return res.status(404).json({ message: "Propiedad no encontrada" });
+
+    res.status(200).json(property);
+  } catch (error) {
+    res.status(500).json({ message: "Error al obtener propiedad", error });
+  }
+};
+
 export const updateProperty = async (req, res) => {
   try {
-    const updates = { ...req.body };
+    const body = req.body;
 
-    if (req.body.precio || req.body.moneda) {
-      updates.precio = {
-        valor: req.body.precio || 0,
-        moneda: req.body.moneda || "USD",
-      };
-    }
+    body.price = normalizeMoneyField(body.precio);
+    body.expensas = normalizeMoneyField(body.expensas);
 
-    if (req.body.expensas || req.body.monedaExpensas) {
-      updates.expensas = {
-        valor: req.body.expensas || 0,
-        moneda: req.body.monedaExpensas || "ARS",
-      };
-    }
-
-    delete updates.moneda;
-    delete updates.monedaExpensas;
-
-    const propiedad = await Property.findByIdAndUpdate(req.params.id, updates, {
+    const updated = await Property.findByIdAndUpdate(req.params.id, body, {
       new: true,
+      runValidators: true,
     });
 
-    res.json(propiedad);
+    if (!updated) return res.status(404).json({ message: "Propiedad no encontrada" });
+
+    res.status(200).json(updated);
   } catch (error) {
-    console.error("Error al actualizar propiedad:", error);
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ message: "Error al actualizar propiedad", error });
   }
 };
 
-// Eliminar propiedad (solo admin o developer)
 export const deleteProperty = async (req, res) => {
   try {
-    await Property.findByIdAndDelete(req.params.id);
-    res.json({ message: "Propiedad eliminada" });
+    const deleted = await Property.findByIdAndDelete(req.params.id);
+
+    if (!deleted) return res.status(404).json({ message: "Propiedad no encontrada" });
+
+    res.status(200).json({ message: "Propiedad eliminada correctamente" });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ message: "Error al eliminar propiedad", error });
   }
 };

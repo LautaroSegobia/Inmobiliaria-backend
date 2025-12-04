@@ -1,32 +1,39 @@
 
 import mongoose from "mongoose";
 
+const imageSchema = new mongoose.Schema(
+  {
+    url: { type: String, required: true },
+    public_id: { type: String, required: true },
+    isCover: { type: Boolean, default: false },
+  },
+  { _id: false }
+);
+
+const moneySchema = new mongoose.Schema(
+  {
+    valor: { type: Number, required: true },
+    moneda: { type: String, enum: ["USD", "ARS"], required: true },
+  },
+  { _id: false }
+);
+
 const propertySchema = new mongoose.Schema(
   {
     titulo: { type: String, required: true },
-    descripcion: { type: String },
 
-    precio: {
-      valor: { type: Number, required: true },
-      moneda: { type: String, enum: ["USD", "ARS"], required: true },
-    },
-    expensas: {
-      valor: { type: Number },
-      moneda: { type: String, enum: ["USD", "ARS"] },
-    },
+    precio: { type: moneySchema, required: false },
+    expensas: { type: moneySchema, required: false },
 
-    metrosCubiertos: { type: Number },
-    metrosDescubiertos: { type: Number },
-    metrosTotales: { type: Number },
     ambientes: { type: Number },
     dormitorios: { type: Number },
     banos: { type: Number },
-    piso: { type: String },
-    antiguedad: { type: String },
+    piso: { type: Number },
+    antiguedad: { type: Number },
     operacion: { type: String },
     tipo: { type: String },
     orientacion: { type: String },
-    luminacion: { type: String },
+
     cochera: { type: Boolean, default: false },
     balcon: { type: Boolean, default: false },
 
@@ -34,23 +41,14 @@ const propertySchema = new mongoose.Schema(
     numero: { type: String },
     zona: { type: String },
 
-    multimedia: [
-      {
-        url: { type: String, required: true },
-        tipo: { type: String, enum: ["imagen", "video"], default: "imagen" },
-        public_id: { type: String },
-        isCover: { type: Boolean, default: false },
-      },
-    ],
+    multimedia: { type: [imageSchema], default: [] },
 
-    mainImage: { type: String }, // URL de la imagen de portada
+    mainImage: { type: imageSchema, default: null },
 
-    creadoPor: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-    },
+    creadoPor: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   },
   { timestamps: true }
 );
 
-export default mongoose.model("Property", propertySchema);
+const Property = mongoose.model("Property", propertySchema);
+export default Property;
