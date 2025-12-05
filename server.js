@@ -9,63 +9,67 @@ import uploadRoutes from "./routes/uploadRoutes.js";
 import propertyRoutes from "./routes/propertyRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
 
-// Configuración inicial
 dotenv.config();
 connectDB();
 
 const app = express();
 
-// Configuración de CORS
+// CORS CONFIG (Versión estable para producción)
 const allowedOrigins = [
-  process.env.FRONTEND_URL, // URL de producción
+  process.env.FRONTEND_URL,
   "http://localhost:5173",
+  "http://localhost:3000",
 ];
 
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Permitir peticiones sin "origin" (por ejemplo, desde Postman)
-      if (!origin || allowedOrigins.includes(origin)) {
+      // Permite requests sin origin (Render, Postman)
+      if (!origin) return callback(null, true);
+
+      if (allowedOrigins.includes(origin)) {
         return callback(null, true);
       }
-      console.warn(`🚫 CORS bloqueó una petición desde: ${origin}`);
-      return callback(new Error("No autorizado por CORS"));
+
+      console.warn("❌ CORS bloqueado desde:", origin);
+      return callback(null, false); // NO lanzar error
     },
     credentials: true,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
 
-// Middlewares globales
-app.use(express.json());
+// Preflight siempre aceptado
+app.options("*", cors());
+
+// Middlewares
+app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 
-// Rutas principales
+// Rutas
 app.use("/api/upload", uploadRoutes);
 app.use("/api/properties", propertyRoutes);
 app.use("/api/users", authRoutes);
 
-// Ruta base
 app.get("/", (req, res) => {
   res.status(200).send("✅ API Inmobiliaria funcionando correctamente");
 });
 
-// Middleware de manejo de errores
+// Manejo de errores global
 app.use((err, req, res, next) => {
-  console.error("💥 Error capturado por middleware:", err.message);
-  const statusCode = res.statusCode === 200 ? 500 : res.statusCode;
+  console.error("💥 Error:", err.message || err);
 
-  res.status(statusCode).json({
+  res.status(res.statusCode !== 200 ? res.statusCode : 500).json({
     success: false,
-    message: err.message,
+    message: err.message || "Error interno",
     stack: process.env.NODE_ENV === "production" ? "🥷" : err.stack,
   });
 });
 
-// Inicialización del servidor
+// Iniciar servidor
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
-  console.log(`🚀 Servidor backend escuchando en el puerto ${PORT}`);
-  console.log(`🌐 Modo: ${process.env.NODE_ENV || "development"}`);
-  if (process.env.FRONTEND_URL)
-    console.log(`🔗 Origen frontend permitido: ${process.env.FRONTEND_URL}`);
+  console.log(`🚀 Backend escuchando en puerto ${PORT}`);
+  console.log(`🌐 FRONTEND_URL permitido: ${process.env.FRONTEND_URL}`);
 });

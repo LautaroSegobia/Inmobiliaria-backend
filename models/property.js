@@ -3,8 +3,8 @@ import mongoose from "mongoose";
 
 const imageSchema = new mongoose.Schema(
   {
-    url: { type: String, required: true },
-    public_id: { type: String, required: true },
+    url: { type: String, required: false },
+    public_id: { type: String, required: false },
     isCover: { type: Boolean, default: false },
   },
   { _id: false }
@@ -12,8 +12,8 @@ const imageSchema = new mongoose.Schema(
 
 const moneySchema = new mongoose.Schema(
   {
-    valor: { type: Number, required: true },
-    moneda: { type: String, enum: ["USD", "ARS"], required: true },
+    valor: { type: Number, required: false },
+    moneda: { type: String, enum: ["USD", "ARS"], required: false },
   },
   { _id: false }
 );
@@ -22,8 +22,8 @@ const propertySchema = new mongoose.Schema(
   {
     titulo: { type: String, required: true },
 
-    precio: { type: moneySchema, required: false },
-    expensas: { type: moneySchema, required: false },
+    precio: { type: moneySchema, default: null },
+    expensas: { type: moneySchema, default: null },
 
     ambientes: { type: Number },
     dormitorios: { type: Number },
@@ -50,5 +50,4 @@ const propertySchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-const Property = mongoose.model("Property", propertySchema);
-export default Property;
+export default mongoose.model("Property", propertySchema);
