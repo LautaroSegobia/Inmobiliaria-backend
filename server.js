@@ -15,57 +15,32 @@ connectDB();
 
 const app = express();
 
-// Configuración de CORS
-const allowedOrigins = [
-  process.env.FRONTEND_URL, // URL de producción
-  "http://localhost:5173",
-];
+// --- ZONA DE CÓDIGO A REEMPLAZAR ---
 
+// Definimos los orígenes permitidos de manera robusta
+const allowedOriginsSet = new Set([
+    process.env.FRONTEND_URL, // Debería ser https://medinaabella.netlify.app
+    "http://localhost:5173",
+]);
+
+// Configuración de CORS
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Permitir peticiones sin "origin" (por ejemplo, desde Postman)
-      if (!origin || allowedOrigins.includes(origin)) {
+// 1. Permitir peticiones sin "origin" (Postman/cURL, etc.)
+      if (!origin) {
         return callback(null, true);
+    }
+
+// 2. Verificar la coincidencia usando Set (más rápido y seguro)
+      if (allowedOriginsSet.has(origin)) {
+      return callback(null, true);
       }
+  
+// 3. Bloquear
       console.warn(`🚫 CORS bloqueó una petición desde: ${origin}`);
       return callback(new Error("No autorizado por CORS"));
     },
-    credentials: true,
+   credentials: true,
   })
 );
-
-// Middlewares globales
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-
-// Rutas principales
-app.use("/api/upload", uploadRoutes);
-app.use("/api/properties", propertyRoutes);
-app.use("/api/users", authRoutes);
-
-// Ruta base
-app.get("/", (req, res) => {
-  res.status(200).send("✅ API Inmobiliaria funcionando correctamente");
-});
-
-// Middleware de manejo de errores
-app.use((err, req, res, next) => {
-  console.error("💥 Error capturado por middleware:", err.message);
-  const statusCode = res.statusCode === 200 ? 500 : res.statusCode;
-
-  res.status(statusCode).json({
-    success: false,
-    message: err.message,
-    stack: process.env.NODE_ENV === "production" ? "🥷" : err.stack,
-  });
-});
-
-// Inicialización del servidor
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`🚀 Servidor backend escuchando en el puerto ${PORT}`);
-  console.log(`🌐 Modo: ${process.env.NODE_ENV || "development"}`);
-  if (process.env.FRONTEND_URL)
-    console.log(`🔗 Origen frontend permitido: ${process.env.FRONTEND_URL}`);
-});
