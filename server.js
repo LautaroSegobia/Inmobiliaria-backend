@@ -11,15 +11,11 @@ import authRoutes from "./routes/authRoutes.js";
 
 // Configuración inicial
 dotenv.config();
-connectDB();
 
 const app = express();
 
-// --- ZONA DE CÓDIGO A REEMPLAZAR ---
-
-// Definimos los orígenes permitidos de manera robusta
 const allowedOriginsSet = new Set([
-    process.env.FRONTEND_URL, // Debería ser https://medinaabella.netlify.app
+    process.env.FRONTEND_URL,
     "http://localhost:5173",
 ]);
 
@@ -27,20 +23,66 @@ const allowedOriginsSet = new Set([
 app.use(
   cors({
     origin: (origin, callback) => {
-// 1. Permitir peticiones sin "origin" (Postman/cURL, etc.)
+// Permitir peticiones sin "origin" (Postman/cURL, etc.)
       if (!origin) {
         return callback(null, true);
-    }
-
-// 2. Verificar la coincidencia usando Set (más rápido y seguro)
-      if (allowedOriginsSet.has(origin)) {
-      return callback(null, true);
       }
-  
-// 3. Bloquear
+
+// Verificar la coincidencia usando Set (más rápido y seguro)
+      if (allowedOriginsSet.has(origin)) {
+        return callback(null, true);
+      }
+
+// Bloquear
       console.warn(`🚫 CORS bloqueó una petición desde: ${origin}`);
       return callback(new Error("No autorizado por CORS"));
     },
-   credentials: true,
+    credentials: true,
   })
 );
+
+// Middlewares globales
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// Rutas principales
+app.use("/api/upload", uploadRoutes);
+app.use("/api/properties", propertyRoutes);
+app.use("/api/users", authRoutes);
+
+// Ruta base
+app.get("/", (req, res) => {
+  res.status(200).send("✅ API Inmobiliaria funcionando correctamente");
+});
+
+// Middleware de manejo de errores
+app.use((err, req, res, next) => {
+  console.error("Error obtenido por middleware:", err.message);
+  const statusCode = res.statusCode === 200 ? 500 : res.statusCode;
+  
+  res.status(statusCode).json({
+    success: false,
+    message: err.message,
+   stack: process.env.NODE_ENV === "production" ? "🥷" : err.stack,
+  });
+});
+
+const PORT = process.env.PORT || 5000;
+
+const startServer = async () => {
+    try {
+        await connectDB(); 
+
+        app.listen(PORT, () => {
+            console.log(`🚀 Servidor backend escuchando en el puerto ${PORT}`);
+            console.log(`🌐 Modo: ${process.env.NODE_ENV || "development"}`);
+            if (process.env.FRONTEND_URL)
+                console.log(`🔗 Origen frontend permitido: ${process.env.FRONTEND_URL}`);
+        });
+    } catch (error) {
+        console.error("💥 Error fatal al iniciar el servidor:", error.message);
+        process.exit(1);
+    }
+};
+
+startServer();
